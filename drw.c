@@ -381,31 +381,30 @@ drw_map(Drw *drw, Window win, int x, int y, unsigned int w, unsigned int h)
 unsigned int
 drw_fontset_getwidth_s2d(Drw *drw, const char *text)
 {
-//FILE* fp = fopen("/dev/tty2","w");
-    if (!drw || !drw->fonts || !text)
-    	return 0;
-    char temp[1024]; 
-    int j = 0;
-    int also = 0;
-    for(int i=0; i < 1024; i++){
-  	if(text[i] == '^'){
-  		int chnum = 0;
-			while(text[i + ++chnum] != '^' && chnum <= 20);
-			switch(text[i+1]){
-				case 'f':
-					;char temp0[20];
-					strncpy(temp0, text+i+2, chnum-2);
-					also += atoi(temp0);
-				break;
+	if (!drw || !drw->fonts || !text)
+		return 0;
+	char temp[1024];
+	int j = 0;
+	int also = 0;
+	for(int i = 0; i < 1024 && text[i]; i++){
+		if(text[i] == '^'){
+			int k = 0;
+			while(text[i + k + 1] != '^' && k < 20)
+				k++;
+			if(text[i+1] == 'f'){
+				char temp0[20];
+				strncpy(temp0,text+i+2,k-1);
+				also += atoi(temp0);
 			}
-			i += chnum;
+			i += k + 1;
+			continue;
 		}
 		temp[j++] = text[i];
-    }
-int ttt = drw_text(drw, 0, 0, 0, 0, 0, temp, 0);
-//fprintf(fp,"ttt: %d | tttalso: %d\n",ttt,ttt+also);
-	return ttt;
+	}
+	temp[j] = 0;
+	return drw_text(drw, 0, 0, 0, 0, 0, temp, 0) + also;
 }
+
 
 unsigned int
 drw_fontset_getwidth(Drw *drw, const char *text)
