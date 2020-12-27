@@ -261,7 +261,7 @@ static void spawn(const Arg *arg);
 static int stackpos(const Arg *arg);
 static void tag(const Arg *arg);
 //static void tagmon(const Arg *arg);
-void togglebackfull();
+static void togglebackfull();
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void togglescratch(const Arg *arg);
@@ -505,9 +505,8 @@ arrange(Monitor *m)
 		restack(m);
 	} else for (m = mons; m; m = m->next)
 		arrangemon(m);
-	if(backfull){
+	if(backfull)
 		XLowerWindow(dpy, backfull->win);
-	}
 }
 
 void
@@ -553,7 +552,13 @@ swallow(Client *p, Client *c)
 	p->win = c->win;
 	c->win = w;
 	updatetitle(p);
+
+	XWindowChanges wc;
+	wc.border_width = p->bw;
+	XConfigureWindow(dpy, p->win, CWBorderWidth, &wc);
 	XMoveResizeWindow(dpy, p->win, p->x, p->y, p->w, p->h);
+	XSetWindowBorder(dpy, p->win, scheme[SchemeNorm][ColBorder].pixel);
+
 	arrange(p->mon);
 	configure(p);
 	updateclientlist();
@@ -568,11 +573,17 @@ unswallow(Client *c)
 	c->swallowing = NULL;
 
 	/* unfullscreen the client */
-	setfullscreen(c, 0);
+	/* setfullscreen(c, 0); or dont */
 	updatetitle(c);
 	arrange(c->mon);
 	XMapWindow(dpy, c->win);
+
+	XWindowChanges wc;
+	wc.border_width = c->bw;
+	XConfigureWindow(dpy, c->win, CWBorderWidth, &wc);
 	XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
+	XSetWindowBorder(dpy, c->win, scheme[SchemeNorm][ColBorder].pixel);
+	
 	setclientstate(c, NormalState);
 	focus(NULL);
 	arrange(c->mon);
@@ -640,9 +651,6 @@ buttonpress(XEvent *e)
 		&& CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
 			buttons[i].func(click == ClkTagBar && buttons[i].arg.i == 0 ? &arg : &buttons[i].arg);
 
-//FILE* fp = fopen("/dev/pts/1","w");
-//fprintf(fp,"stext: %s\nrawstext: %s\n\n",stext,rawstext);
-//fclose(fp);
 }
 
 void
@@ -2024,7 +2032,8 @@ void
 setfullscreen(Client *c, int fullscreen)
 {
 	if (fullscreen && !c->isfullscreen) {
-		if(c->isbackfull) togglebackfull();
+		if(c->isbackfull)
+			togglebackfull();
 		XChangeProperty(dpy, c->win, netatom[NetWMState], XA_ATOM, 32,
 			PropModeReplace, (unsigned char*)&netatom[NetWMFullscreen], 1);
 		c->isfullscreen = 1;
@@ -2315,16 +2324,12 @@ if (!selmon->sel || !mons->next)
 void
 togglebackfull()
 {
-	int corpse = 1;
-	for(Client* c = selmon->clients; c != 0; c = c->next){
-		if(c == backfull){
-			corpse = 0;
-			break;
-		}
-	}
+	if(!selmon->sel)
+		return;
 
-	if (!backfull || corpse) {
-		if (selmon->sel->isfullscreen) setfullscreen(selmon->sel,0);
+	if (!backfull) {
+		if (selmon->sel->isfullscreen)
+			setfullscreen(selmon->sel,0);
 		backfull = selmon->sel;
 		backfull->isbackfull = 1;
 		backfull->oldstate = backfull->isfloating;
@@ -2354,6 +2359,7 @@ togglebackfull()
 		backfull->issticky = 0;
 		arrange(backfull->mon);
 		backfull = NULL;
+		focus(NULL);
 	}
 }
 
@@ -2481,6 +2487,9 @@ unmanage(Client *c, int destroyed)
         focus(NULL);
 		return;
 	}
+
+	if(c == backfull)
+		backfull = 0;
 
 	detach(c);
 	detachstack(c);

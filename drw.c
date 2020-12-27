@@ -405,7 +405,6 @@ drw_fontset_getwidth_s2d(Drw *drw, const char *text)
 	return drw_text(drw, 0, 0, 0, 0, 0, temp, 0) + also;
 }
 
-
 unsigned int
 drw_fontset_getwidth(Drw *drw, const char *text)
 {
